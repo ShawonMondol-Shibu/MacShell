@@ -2,55 +2,43 @@ name: Finalize About This Linux
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   finalize:
+    if: github.actor == 'ShawonMondol-Shibu'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Apply About This Linux integration
+      - name: Integrate About This Linux
+        shell: python
         run: |
-          python3 <<'PY'
           from pathlib import Path
           import re
 
-          bar_path = Path("MacShell/MacBar.qml")
-          dock_path = Path("MacShell/MacDock.qml")
-          about_path = Path("MacShell/AboutThisLinux.qml")
+          bar_path = Path('MacShell/MacBar.qml')
+          dock_path = Path('MacShell/MacDock.qml')
 
-          # Keep the existing Linux wording and make the menu item open the About pane.
-          bar = bar_path.read_text(encoding="utf-8")
-          menu_pattern = re.compile(
-              r'm\\.push\\(mi\\("About This (?:Linux|Mac)",\\s*"",\\s*function \\(\\) \\{.*?\\}\\);\\);',
-              re.S,
-          )
-          bar2, n = menu_pattern.subn(
-              'm.push(mi("About This Linux", "", function () { root.openSettings("about"); }));',
-              bar,
-              count=1,
-          )
+          bar = bar_path.read_text(encoding='utf-8')
+          pattern = re.compile(r'm\.push\(mi\("About This (?:Linux|Mac)",\s*"",\s*function \(\) \{.*?\}\);\);', re.S)
+          bar2, n = pattern.subn('m.push(mi("About This Linux", "", function () { root.openSettings("about"); }));', bar, count=1)
           if n != 1:
-              raise SystemExit("Could not find the About This Linux/Mac menu entry")
-          bar_path.write_text(bar2, encoding="utf-8")
+              raise SystemExit('About This Linux/Mac menu entry not found')
+          bar_path.write_text(bar2, encoding='utf-8')
 
-          # Replace the old About page with the new Linux-native hardware panel.
-          dock = dock_path.read_text(encoding="utf-8")
-          start_marker = "        Component {\n            id: paneAbout\n"
-          end_marker = "    readonly property real effMag:"
+          dock = dock_path.read_text(encoding='utf-8')
+          start_marker = '        Component {\n            id: paneAbout\n'
+          end_marker = '    readonly property real effMag:'
           start = dock.find(start_marker)
           end = dock.find(end_marker, start)
           if start < 0 or end < 0:
-              raise SystemExit("Could not locate paneAbout boundaries")
-
+              raise SystemExit('paneAbout boundaries not found')
           replacement = '''        Component {
             id: paneAbout
             Item {
@@ -66,341 +54,14 @@ jobs:
         }
 
 '''
-          dock_path.write_text(dock[:start] + replacement + dock[end:], encoding="utf-8")
+          dock_path.write_text(dock[:start] + replacement + dock[end:], encoding='utf-8')
 
-          # Linux-native About panel. Chassis type decides laptop vs desktop illustration.
-          about = r'''import QtQuick
-import Quickshell
-import Quickshell.Io
-
-Item {
-    id: root
-    implicitWidth: 430
-    implicitHeight: 720
-
-    property string processor: "Detecting…"
-    property string graphics: "Detecting…"
-    property string memory: "Detecting…"
-    property string startupDisk: "Detecting…"
-    property string systemVersion: "Detecting…"
-    property string kernel: ""
-    property string cpuCores: ""
-    property string deviceType: "desktop"
-    property string deviceModel: "Linux Desktop"
-    property bool detailsVisible: false
-
-    Process {
-        running: true
-        command: ["sh", "-c", "cpu=$(lscpu 2>/dev/null | awk -F': *' '/Model name:/ {print $2; exit}'); [ -n \"$cpu\" ] || cpu=$(uname -p); gpu=$(lspci 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' | sed 's/.*: //' | paste -sd ' / ' -); [ -n \"$gpu\" ] || gpu='Integrated graphics'; mem=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2; exit}'); [ -n \"$mem\" ] || mem='Unknown'; disk=$(findmnt -no SOURCE / 2>/dev/null || echo Unknown); . /etc/os-release 2>/dev/null || true; chassis=$(cat /sys/class/dmi/id/chassis_type 2>/dev/null || cat /sys/devices/virtual/dmi/id/chassis_type 2>/dev/null || true); model=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true); case \"$chassis\" in 8|9|10|11|14) kind=laptop ;; *) kind=desktop ;; esac; [ -n \"$model\" ] || model=\"Linux ${kind^}\"; printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \"$cpu\" \"$gpu\" \"$mem\" \"$disk\" \"${PRETTY_NAME:-Linux}\" \"$(uname -r)\" \"$kind\" \"$model\"; nproc 2>/dev/null || true"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var lines = text.trim().split("\n");
-                var f = (lines[0] || "").split("\t");
-                if (f.length >= 8) {
-                    root.processor = f[0] || "Unknown processor";
-                    root.graphics = f[1] || "Integrated graphics";
-                    root.memory = f[2] || "Unknown";
-                    root.startupDisk = f[3] || "Unknown";
-                    root.systemVersion = f[4] || "Linux";
-                    root.kernel = f[5] || "";
-                    root.deviceType = f[6] === "laptop" ? "laptop" : "desktop";
-                    root.deviceModel = f[7] || (root.deviceType === "laptop" ? "Linux Laptop" : "Linux Desktop");
-                }
-                if (lines.length > 1 && lines[1]) root.cpuCores = lines[1] + " logical cores";
-            }
-        }
-    }
-
-    component InfoRow: Item {
-        required property string label
-        required property string value
-        width: parent.width
-        height: 42
-        Text {
-            anchors.left: parent.left
-            anchors.leftMargin: 4
-            anchors.verticalCenter: parent.verticalCenter
-            width: 122
-            text: label
-            color: "#ffffffb8"
-            font.family: "Open Runde"
-            font.pixelSize: 12
-        }
-        Text {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - 130
-            text: value
-            horizontalAlignment: Text.AlignRight
-            elide: Text.ElideRight
-            color: "white"
-            font.family: "Open Runde"
-            font.pixelSize: 12
-        }
-    }
-
-    component LaptopIllustration: Item {
-        width: 300
-        height: 190
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 8
-            width: 208
-            height: 132
-            radius: 9
-            color: "#17191d"
-            border.width: 2
-            border.color: "#aeb2b8"
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 5
-                radius: 5
-                gradient: Gradient {
-                    GradientStop { position: 0; color: "#3b86c6" }
-                    GradientStop { position: 0.55; color: "#1d5b9c" }
-                    GradientStop { position: 1; color: "#14243b" }
-                }
-                Text {
-                    anchors.centerIn: parent
-                    text: "LINUX"
-                    color: "#ffffffcc"
-                    font.family: "Open Runde"
-                    font.pixelSize: 20
-                    font.weight: Font.DemiBold
-                }
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: 132
-                width: 22
-                height: 7
-                radius: 3.5
-                color: "#9da2a9"
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: 138
-                width: 286
-                height: 18
-                radius: 9
-                color: "#b9bec5"
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: 145
-                width: 82
-                height: 5
-                radius: 2.5
-                color: "#8c929a"
-            }
-        }
-    }
-
-    component DesktopIllustration: Item {
-        width: 300
-        height: 190
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 12
-            width: 166
-            height: 126
-            radius: 12
-            gradient: Gradient {
-                GradientStop { position: 0; color: "#4b4f55" }
-                GradientStop { position: 1; color: "#22252a" }
-            }
-            border.width: 2
-            border.color: "#aeb2b8"
-            Rectangle {
-                anchors.centerIn: parent
-                width: 112
-                height: 78
-                radius: 8
-                gradient: Gradient {
-                    GradientStop { position: 0; color: "#3b86c6" }
-                    GradientStop { position: 0.55; color: "#1d5b9c" }
-                    GradientStop { position: 1; color: "#14243b" }
-                }
-                Text {
-                    anchors.centerIn: parent
-                    text: "LINUX"
-                    color: "#ffffffcc"
-                    font.family: "Open Runde"
-                    font.pixelSize: 16
-                    font.weight: Font.DemiBold
-                }
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: 126
-                width: 42
-                height: 10
-                radius: 5
-                color: "#aeb3ba"
-            }
-        }
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 140
-            width: 78
-            height: 11
-            radius: 5.5
-            color: "#aeb3ba"
-        }
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 150
-            width: 132
-            height: 7
-            radius: 3.5
-            color: "#8e949c"
-        }
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        radius: 18
-        clip: true
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#8f272b" }
-            GradientStop { position: 0.52; color: "#711b20" }
-            GradientStop { position: 1.0; color: "#4d1117" }
-        }
-        border.width: 1
-        border.color: "#ffffff18"
-
-        Row {
-            x: 18
-            y: 16
-            spacing: 8
-            Repeater {
-                model: ["#ff5f57", "#febc2e", "#28c840"]
-                delegate: Rectangle {
-                    required property string modelData
-                    width: 12
-                    height: 12
-                    radius: 6
-                    color: modelData
-                }
-            }
-        }
-
-        Column {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 44
-            width: parent.width - 44
-            spacing: 0
-
-            Item {
-                width: parent.width
-                height: 192
-                Loader {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: 0
-                    sourceComponent: root.deviceType === "laptop" ? laptopArt : desktopArt
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: "About This Linux"
-                horizontalAlignment: Text.AlignHCenter
-                color: "white"
-                font.family: "Open Runde"
-                font.pixelSize: 27
-                font.weight: Font.Medium
-            }
-            Text {
-                width: parent.width
-                topPadding: 5
-                text: root.deviceModel
-                horizontalAlignment: Text.AlignHCenter
-                color: "#ffffffb8"
-                font.family: "Open Runde"
-                font.pixelSize: 12
-                elide: Text.ElideRight
-            }
-            Item { width: 1; height: 15 }
-            Rectangle { width: parent.width; height: 1; color: "#ffffff20" }
-
-            InfoRow { label: "Processor"; value: root.processor + (root.cpuCores !== "" ? " · " + root.cpuCores : "") }
-            InfoRow { label: "Graphics"; value: root.graphics }
-            InfoRow { label: "Memory"; value: root.memory }
-            InfoRow { label: "Startup Disk"; value: root.startupDisk }
-            InfoRow { label: "Linux"; value: root.systemVersion }
-
-            Item { width: 1; height: 8 }
-            Rectangle {
-                width: parent.width
-                height: 36
-                radius: 18
-                color: moreMouse.pressed ? "#ffffff28" : "#ffffff16"
-                border.width: 1
-                border.color: "#ffffff28"
-                Text {
-                    anchors.centerIn: parent
-                    text: root.detailsVisible ? "Hide Details" : "More Info…"
-                    color: "white"
-                    font.family: "Open Runde"
-                    font.pixelSize: 12
-                }
-                MouseArea {
-                    id: moreMouse
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.detailsVisible = !root.detailsVisible
-                }
-            }
-            Rectangle {
-                visible: root.detailsVisible
-                width: parent.width
-                height: 70
-                radius: 12
-                color: "#00000020"
-                border.width: 1
-                border.color: "#ffffff16"
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 5
-                    Text { text: "Kernel: " + root.kernel; color: "#ffffffb8"; font.pixelSize: 11; font.family: "Open Runde"; width: parent.width; elide: Text.ElideRight }
-                    Text { text: "Device: " + root.deviceType; color: "#ffffffb8"; font.pixelSize: 11; font.family: "Open Runde"; width: parent.width; elide: Text.ElideRight }
-                }
-            }
-        }
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            bottom: 14
-            width: parent.width - 40
-            horizontalAlignment: Text.AlignHCenter
-            text: "Built for Linux on Hyprland with Quickshell."
-            color: "#ffffff70"
-            font.family: "Open Runde"
-            font.pixelSize: 9
-        }
-    }
-
-    LaptopIllustration { id: laptopArt; visible: false }
-    DesktopIllustration { id: desktopArt; visible: false }
-}
-'''
-          about_path.write_text(about, encoding="utf-8")
-
-          old_about = Path("MacShell/AboutThisMac.qml")
-          if old_about.exists():
-              old_about.unlink()
-
-          workflow = Path(".github/workflows/apply-about-this-mac.yml")
-          if workflow.exists():
-              workflow.unlink()
-          PY
-
-      - name: Commit and push final integration
+      - name: Commit source changes
         run: |
           git config user.name "Shawon Mondol Shibu"
           git config user.email "Shawonmondolshibu@gmail.com"
-          git add MacShell/MacBar.qml MacShell/MacDock.qml MacShell/AboutThisLinux.qml MacShell/AboutThisMac.qml .github/workflows/apply-about-this-mac.yml
+          git add MacShell/MacBar.qml MacShell/MacDock.qml MacShell/AboutThisLinux.qml MacShell/AboutThisMac.qml
           git diff --cached --check
-          git commit -m "feat: finalize About This Linux"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "feat: finalize About This Linux integration"
           git push

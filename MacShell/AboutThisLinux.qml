@@ -20,7 +20,7 @@ Item {
 
     Process {
         running: true
-        command: ["sh", "-c", "cpu=$(lscpu 2>/dev/null | awk -F': *' '/Model name:/ {print $2; exit}'); [ -n \"$cpu\" ] || cpu=$(uname -p); gpu=$(lspci 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' | sed 's/.*: //' | paste -sd ' / ' -); [ -n \"$gpu\" ] || gpu='Integrated graphics'; mem=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2; exit}'); [ -n \"$mem\" ] || mem='Unknown'; disk=$(findmnt -no SOURCE / 2>/dev/null || echo Unknown); . /etc/os-release 2>/dev/null || true; chassis=$(cat /sys/class/dmi/id/chassis_type 2>/dev/null || true); model=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true); case \"$chassis\" in 8|9|10|11|14) kind=laptop ;; *) kind=desktop ;; esac; [ -n \"$model\" ] || model=\"Linux ${kind^}\"; printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \"$cpu\" \"$gpu\" \"$mem\" \"$disk\" \"${PRETTY_NAME:-Linux}\" \"$(uname -r)\" \"$kind\" \"$model\"; nproc 2>/dev/null || true"]
+        command: ["sh", "-c", "cpu=$(lscpu 2>/dev/null | awk -F': *' '/Model name:/ {print $2; exit}'); [ -n \"$cpu\" ] || cpu=$(uname -p); gpu=$(lspci 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' | sed 's/.*: //' | paste -sd ' / ' -); [ -n \"$gpu\" ] || gpu='Integrated graphics'; mem=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2; exit}'); [ -n \"$mem\" ] || mem='Unknown'; disk=$(findmnt -no SOURCE / 2>/dev/null || echo Unknown); . /etc/os-release 2>/dev/null || true; chassis=$(cat /sys/class/dmi/id/chassis_type 2>/dev/null || true); model=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true); case \"$chassis\" in 8|9|10|11|14|31|32) kind=laptop ;; *) kind=desktop ;; esac; [ -n \"$model\" ] || model=\"Linux ${kind^}\"; printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \"$cpu\" \"$gpu\" \"$mem\" \"$disk\" \"${PRETTY_NAME:-Linux}\" \"$(uname -r)\" \"$kind\" \"$model\"; nproc 2>/dev/null || true"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var lines = text.trim().split("\n")
@@ -169,7 +169,7 @@ Item {
                 Loader {
                     anchors.horizontalCenter: parent.horizontalCenter
                     y: 0
-                    sourceComponent: root.deviceType === "laptop" ? laptopIllustration : desktopIllustration
+                    sourceComponent: root.deviceType === "laptop" ? LaptopIllustration : DesktopIllustration
                 }
             }
 

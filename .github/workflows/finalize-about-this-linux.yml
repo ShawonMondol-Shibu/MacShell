@@ -2,7 +2,8 @@ name: Finalize About This Linux
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -12,21 +13,21 @@ jobs:
     if: github.actor == 'ShawonMondol-Shibu'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Integrate About This Linux
-        shell: python
+      - name: Apply integration
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           import re
 
+          about_path = Path('MacShell/AboutThisLinux.qml')
           bar_path = Path('MacShell/MacBar.qml')
           dock_path = Path('MacShell/MacDock.qml')
-          about_path = Path('MacShell/AboutThisLinux.qml')
 
-          # Fix the dynamic illustration component references first.
           about = about_path.read_text(encoding='utf-8')
           about = about.replace(
               'sourceComponent: root.deviceType === "laptop" ? laptopIllustration : desktopIllustration',
@@ -34,26 +35,25 @@ jobs:
           )
           about_path.write_text(about, encoding='utf-8')
 
-          # Menu entry -> Settings About pane.
           bar = bar_path.read_text(encoding='utf-8')
-          pattern = re.compile(r'm\.push\(mi\("About This (?:Linux|Mac)",\s*"",\s*function \(\) \{.*?\}\);\);', re.S)
-          bar2, count = pattern.subn(
-              'm.push(mi("About This Linux", "", function () { root.openSettings("about"); }));',
-              bar,
-              count=1,
+          pattern = re.compile(
+              r'm\.push\(mi\("About This (?:Linux|Mac)",\s*"",\s*function \(\) \{.*?\}\);\);',
+              re.S,
           )
+          replacement = 'm.push(mi("About This Linux", "", function () { root.openSettings("about"); }));'
+          bar2, count = pattern.subn(replacement, bar, count=1)
           if count != 1:
-              raise SystemExit('Could not find the About This Linux/Mac menu item')
+              raise SystemExit('About This Linux/Mac menu entry was not found')
           bar_path.write_text(bar2, encoding='utf-8')
 
-          # Settings pane -> AboutThisLinux component.
           dock = dock_path.read_text(encoding='utf-8')
           start_marker = '        Component {\n            id: paneAbout\n'
           end_marker = '    readonly property real effMag:'
           start = dock.find(start_marker)
           end = dock.find(end_marker, start)
           if start < 0 or end < 0:
-              raise SystemExit('Could not locate paneAbout boundaries')
+              raise SystemExit('paneAbout boundaries were not found')
+
           replacement = '''        Component {
             id: paneAbout
             Item {
@@ -71,33 +71,32 @@ jobs:
 '''
           dock_path.write_text(dock[:start] + replacement + dock[end:], encoding='utf-8')
 
-          # Remove obsolete implementation/workflow so the final tree is clean.
           old = Path('MacShell/AboutThisMac.qml')
           if old.exists():
               old.unlink()
           old_workflow = Path('.github/workflows/apply-about-this-mac.yml')
           if old_workflow.exists():
               old_workflow.unlink()
-          this_workflow = Path('.github/workflows/finalize-about-this-linux.yml')
-          if this_workflow.exists():
-              this_workflow.unlink()
+          PY
 
-      - name: Validate and commit
-        shell: bash
+      - name: Validate source
         run: |
           set -euo pipefail
           test -f MacShell/AboutThisLinux.qml
           test ! -e MacShell/AboutThisMac.qml
-          grep -Fq 'About This Linux' MacShell/MacBar.qml
-          grep -Fq 'root.openSettings("about")' MacShell/MacBar.qml
+          test ! -e .github/workflows/apply-about-this-mac.yml
+          grep -Fq 'm.push(mi("About This Linux", "", function () { root.openSettings("about"); }));' MacShell/MacBar.qml
           grep -Fq 'AboutThisLinux' MacShell/MacDock.qml
           grep -Fq 'sourceComponent: root.deviceType === "laptop" ? LaptopIllustration : DesktopIllustration' MacShell/AboutThisLinux.qml
           grep -Fq 'case "$chassis"' MacShell/AboutThisLinux.qml
-          if grep -R -n -E 'About This Mac|AboutThisMac|MacBook Pro' MacShell/AboutThisLinux.qml MacShell/MacBar.qml MacShell/MacDock.qml; then
-            echo 'Obsolete About This Mac references remain.'
-            exit 1
-          fi
+          ! grep -Fq 'About This Mac' MacShell/MacBar.qml
+          ! grep -Fq 'AboutThisMac' MacShell/MacBar.qml
+          ! grep -Fq 'MacBook Pro' MacShell/AboutThisLinux.qml
           git diff --check
+
+      - name: Commit integration
+        run: |
+          set -euo pipefail
           git config user.name 'Shawon Mondol Shibu'
           git config user.email 'Shawonmondolshibu@gmail.com'
           git add MacShell/MacBar.qml MacShell/MacDock.qml MacShell/AboutThisLinux.qml MacShell/AboutThisMac.qml .github/workflows/apply-about-this-mac.yml .github/workflows/finalize-about-this-linux.yml

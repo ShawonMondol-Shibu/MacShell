@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   finalize:
-    if: github.actor == 'ShawonMondol-Shibu'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -94,11 +93,13 @@ jobs:
           ! grep -Fq 'MacBook Pro' MacShell/AboutThisLinux.qml
           git diff --check
 
-      - name: Commit integration
+      - name: Commit integration and remove this workflow
         run: |
           set -euo pipefail
           git config user.name 'Shawon Mondol Shibu'
           git config user.email 'Shawonmondolshibu@gmail.com'
+          rm -f .github/workflows/finalize-about-this-linux.yml
           git add MacShell/MacBar.qml MacShell/MacDock.qml MacShell/AboutThisLinux.qml MacShell/AboutThisMac.qml .github/workflows/apply-about-this-mac.yml .github/workflows/finalize-about-this-linux.yml
+          git diff --cached --check
           git commit -m 'feat: finalize About This Linux integration'
           git push

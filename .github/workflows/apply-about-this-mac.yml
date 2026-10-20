@@ -12,348 +12,61 @@ jobs:
     if: github.actor == 'ShawonMondol-Shibu'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Apply About This Mac UI
+      - name: Integrate About This Mac
         shell: python
         run: |
           from pathlib import Path
+          import re
 
-          dock = Path('MacShell/MacDock.qml')
           bar = Path('MacShell/MacBar.qml')
+          dock = Path('MacShell/MacDock.qml')
 
-          about_qml = r'''import QtQuick
-import QtQuick.Controls
-import Quickshell
-import Quickshell.Io
+          b = bar.read_text(encoding='utf-8')
+          b2, n = re.subn(
+              r'm\.push\(mi\("About This Linux", "", function \(\) \{.*?\}\);\);',
+              'm.push(mi("About This Mac", "", function () { root.openSettings("about"); }));',
+              b,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit('About This Linux menu entry not found')
+          bar.write_text(b2, encoding='utf-8')
 
-Item {
-    id: root
+          d = dock.read_text(encoding='utf-8')
+          start = d.find('        Component {\n            id: paneAbout\n')
+          end = d.find('    readonly property real effMag:', start)
+          if start < 0 or end < 0:
+              raise SystemExit('paneAbout boundaries not found')
 
-    property string machineName: "MacBook Pro"
-    property string processor: "Detecting…"
-    property string graphics: "Detecting…"
-    property string memory: "Detecting…"
-    property string startupDisk: "Detecting…"
-    property string systemVersion: "Detecting…"
-    property string kernel: ""
-    property string cpuCores: ""
-    property string serialNumber: "••••••••••••"
-    property bool detailsVisible: false
-
-    implicitWidth: 430
-    implicitHeight: 720
-
-    Process {
-        id: hardwareProbe
-        running: true
-        command: ["sh", "-c", "" +
-            "product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true); " +
-            "[ -n \"$product\" ] || product='MacBook Pro'; " +
-            "cpu=$(lscpu 2>/dev/null | awk -F': *' '/Model name:/ {print $2; exit}'); " +
-            "[ -n \"$cpu\" ] || cpu=$(uname -p 2>/dev/null); " +
-            "cores=$(nproc 2>/dev/null || true); " +
-            "gpu=$(lspci 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' | sed 's/.*: //' | paste -sd ' / ' -); " +
-            "[ -n \"$gpu\" ] || gpu='Integrated graphics'; " +
-            "mem=$(free -h 2>/dev/null | awk '/^Mem:/ {print $2; exit}'); " +
-            "[ -n \"$mem\" ] || mem='Unknown'; " +
-            "rootdev=$(findmnt -no SOURCE / 2>/dev/null || true); " +
-            "[ -n \"$rootdev\" ] || rootdev='Unknown'; " +
-            "disksize=$(lsblk -no SIZE \"$rootdev\" 2>/dev/null | head -n1 || true); " +
-            "[ -n \"$disksize\" ] || disksize=''; " +
-            "disk=\"$rootdev${disksize:+ ($disksize)}\"; " +
-            "[ -n \"$disk\" ] || disk='Unknown'; " +
-            ". /etc/os-release 2>/dev/null || true; os=\"${PRETTY_NAME:-Linux}\"; " +
-            "kernel=$(uname -r 2>/dev/null || true); " +
-            "printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \"$product\" \"$cpu\" \"$gpu\" \"$mem\" \"$disk\" \"$os\" \"$kernel\"; " +
-            "printf '%s\\n' \"$cores\""]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var lines = text.trim().split("\\n");
-                var fields = (lines.length ? lines[0] : "").split("\\t");
-                if (fields.length >= 7) {
-                    root.machineName = fields[0] || "MacBook Pro";
-                    root.processor = fields[1] || "Unknown processor";
-                    root.graphics = fields[2] || "Integrated graphics";
-                    root.memory = fields[3] || "Unknown memory";
-                    root.startupDisk = fields[4] || "Unknown disk";
-                    root.systemVersion = fields[5] || "Linux";
-                    root.kernel = fields[6] || "";
-                }
-                if (lines.length > 1 && lines[1].trim() !== "")
-                    root.cpuCores = lines[1].trim() + " logical cores";
-            }
-        }
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        radius: 18
-        clip: true
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#8f272b" }
-            GradientStop { position: 0.52; color: "#711b20" }
-            GradientStop { position: 1.0; color: "#4d1117" }
-        }
-        border.width: 1
-        border.color: "#ffffff18"
-
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            color: "transparent"
-            border.width: 1
-            border.color: "#00000024"
-        }
-
-        // macOS traffic lights
-        Row {
-            x: 18
-            y: 16
-            spacing: 8
-            Repeater {
-                model: ["#ff5f57", "#febc2e", "#28c840"]
-                delegate: Rectangle {
-                    required property string modelData
-                    width: 12; height: 12; radius: 6
-                    color: modelData
-                    border.width: 1
-                    border.color: "#00000018"
-                }
-            }
-        }
-
-        Column {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 46
-            width: parent.width - 44
-            spacing: 0
-
-            // Clean vector MacBook illustration. Keeping it in QML avoids an external binary asset.
+          replacement = '''        Component {
+            id: paneAbout
             Item {
-                width: parent.width
-                height: 205
-
-                Rectangle {
-                    id: screen
+                width: parent ? parent.width : 430
+                height: aboutCard.implicitHeight
+                AboutThisMac {
+                    id: aboutCard
                     anchors.horizontalCenter: parent.horizontalCenter
-                    y: 8
-                    width: 208
-                    height: 134
-                    radius: 8
-                    color: "#17191d"
-                    border.width: 2
-                    border.color: "#aeb2b8"
-
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: 5
-                        radius: 4
-                        gradient: Gradient {
-                            GradientStop { position: 0; color: "#3c8bc9" }
-                            GradientStop { position: 0.55; color: "#1c5b9c" }
-                            GradientStop { position: 1; color: "#15263e" }
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            text: ""
-                            color: "#ffffffcc"
-                            font.pixelSize: 34
-                            font.weight: Font.Light
-                        }
-                    }
-
-                    Rectangle {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        y: 2
-                        width: 28; height: 3; radius: 2
-                        color: "#050505"
-                    }
-                }
-
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: 140
-                    width: 252
-                    height: 8
-                    radius: 4
-                    color: "#c8ccd2"
-                }
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: 147
-                    width: 286
-                    height: 22
-                    radius: 11
-                    color: "#aeb3ba"
-                    border.width: 1
-                    border.color: "#e4e6e9"
-                }
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: 153
-                    width: 78; height: 8; radius: 4
-                    color: "#8e949c"
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: "MacBook Pro"
-                horizontalAlignment: Text.AlignHCenter
-                color: "white"
-                font.family: "Open Runde"
-                font.pixelSize: 29
-                font.weight: Font.Medium
-            }
-
-            Text {
-                width: parent.width
-                topPadding: 6
-                text: root.systemVersion
-                horizontalAlignment: Text.AlignHCenter
-                color: "#ffffffb8"
-                font.family: "Open Runde"
-                font.pixelSize: 12
-            }
-
-            Item { width: 1; height: 20 }
-
-            Rectangle {
-                width: parent.width
-                height: 1
-                color: "#ffffff20"
-            }
-
-            component InfoRow: Item {
-                required property string label
-                required property string value
-                width: parent.width
-                height: 42
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 4
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 122
-                    text: label
-                    color: "#ffffffb8"
-                    font.family: "Open Runde"
-                    font.pixelSize: 12
-                }
-                Text {
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 130
-                    text: value
-                    horizontalAlignment: Text.AlignRight
-                    elide: Text.ElideRight
-                    color: "white"
-                    font.family: "Open Runde"
-                    font.pixelSize: 12
-                }
-            }
-
-            InfoRow { label: "Processor"; value: root.processor + (root.cpuCores !== "" ? "  ·  " + root.cpuCores : "") }
-            InfoRow { label: "Graphics"; value: root.graphics }
-            InfoRow { label: "Memory"; value: root.memory }
-            InfoRow { label: "Startup Disk"; value: root.startupDisk }
-            InfoRow { label: "Serial Number"; value: root.serialNumber }
-            InfoRow { label: "System"; value: root.systemVersion }
-
-            Item { width: 1; height: 8 }
-
-            Rectangle {
-                width: parent.width
-                height: 36
-                radius: 18
-                color: moreMouse.pressed ? "#ffffff28" : "#ffffff16"
-                border.width: 1
-                border.color: "#ffffff28"
-                scale: moreMouse.pressed ? 0.98 : 1.0
-                Behavior on scale { NumberAnimation { duration: 120 } }
-                Text {
-                    anchors.centerIn: parent
-                    text: root.detailsVisible ? "Hide Details" : "More Info…"
-                    color: "white"
-                    font.family: "Open Runde"
-                    font.pixelSize: 12
-                }
-                MouseArea {
-                    id: moreMouse
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.detailsVisible = !root.detailsVisible
-                }
-            }
-
-            Rectangle {
-                visible: root.detailsVisible
-                width: parent.width
-                height: 86
-                radius: 12
-                color: "#00000020"
-                border.width: 1
-                border.color: "#ffffff16"
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 5
-                    Text { text: "Kernel: " + root.kernel; color: "#ffffffb8"; font.pixelSize: 11; font.family: "Open Runde"; elide: Text.ElideRight; width: parent.width }
-                    Text { text: "CPU: " + root.cpuCores; color: "#ffffffb8"; font.pixelSize: 11; font.family: "Open Runde"; elide: Text.ElideRight; width: parent.width }
-                    Text { text: "Serial: hidden for privacy"; color: "#ffffffb8"; font.pixelSize: 11; font.family: "Open Runde"; width: parent.width }
+                    width: Math.min(430, parent.width)
+                    height: implicitHeight
                 }
             }
         }
 
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            bottom: 14
-            width: parent.width - 40
-            horizontalAlignment: Text.AlignHCenter
-            text: "Designed by Apple in California.\\nRebuilt on Linux by two people who could not afford the Mac."
-            color: "#ffffff70"
-            font.family: "Open Runde"
-            font.pixelSize: 9
-        }
-    }
-}
 '''
+          dock.write_text(d[:start] + replacement + d[end:], encoding='utf-8')
 
-          Path('MacShell/AboutThisMac.qml').write_text(about_qml, encoding='utf-8')
+          Path('.github/workflows/apply-about-this-mac.yml').unlink(missing_ok=True)
 
-          bar_text = bar.read_text(encoding='utf-8')
-          old_menu = 'm.push(mi("About This Linux", "", function () { sh(terminal + " -e sh -c \'fastfetch || neofetch; echo; read -p \\\"Press Enter\\\" _\'"); }));'
-          new_menu = 'm.push(mi("About This Mac", "", function () { root.openSettings("about"); }));'
-          if old_menu not in bar_text:
-              raise SystemExit('Could not find the About This Linux menu entry in MacBar.qml')
-          bar.write_text(bar_text.replace(old_menu, new_menu, 1), encoding='utf-8')
-
-          dock_text = dock.read_text(encoding='utf-8')
-          start_marker = '        Component {\n            id: paneAbout\n'
-          end_marker = '    readonly property real effMag:'
-          start = dock_text.find(start_marker)
-          if start < 0:
-              raise SystemExit('Could not find paneAbout in MacDock.qml')
-          end = dock_text.find(end_marker, start)
-          if end < 0:
-              raise SystemExit('Could not find paneAbout end marker in MacDock.qml')
-
-          replacement = '''        Component {\n            id: paneAbout\n            Item {\n                width: parent ? parent.width : 430\n                height: aboutCard.implicitHeight\n\n                AboutThisMac {\n                    id: aboutCard\n                    anchors.horizontalCenter: parent.horizontalCenter\n                    width: Math.min(430, parent.width)\n                    height: implicitHeight\n                }\n            }\n        }\n\n'''
-          dock_text = dock_text[:start] + replacement + dock_text[end:]
-          dock.write_text(dock_text, encoding='utf-8')
-
-          workflow = Path('.github/workflows/apply-about-this-mac.yml')
-          workflow.unlink(missing_ok=True)
-
-      - name: Commit changes
+      - name: Commit integration
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add MacShell/MacDock.qml MacShell/MacBar.qml MacShell/AboutThisMac.qml .github/workflows/apply-about-this-mac.yml
-          git diff --cached --quiet && exit 0
-          git commit -m "feat: add macOS-style About This Mac"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "feat: integrate macOS-style About This Mac"
           git push

@@ -101,6 +101,7 @@ The two are installed as **separate** Quickshell configs (neither lives inside t
 | `MacBar.qml` | Menu bar, Control Center, Spotlight, notifications, switcher, screenshots, wallpaper picker. |
 | `MacDock.qml` | Dock, window previews, and the Settings window. |
 | `ClockApp.qml` | The Clock app window (opened from the menu bar clock). |
+| `AboutThisLinux.qml` | The "About This Linux" card (Settings → About, and the Apple menu). Detects CPU, GPU, RAM, startup disk, distribution, kernel, chassis type and model, and draws a laptop or a desktop accordingly. |
 | `MacWidgets.qml` | Desktop widgets layer (data, placement, editing). |
 | `WidgetVisual.qml` | Draws one widget; shared by the desktop layer and the Liquid Glass backdrop, so menus refract the widgets too. |
 | `WeatherWidget.qml`, `WeatherIcon.qml`, `WeatherHourCol.qml`, `CalendarWidget.qml`, `ClockWidget.qml`, `PlayerWidget.qml`, `PlayerArt.qml`, `PlayerBtn.qml`, `PlayerGlyph.qml`, `ImageWidget.qml`, `MarqueeText.qml` | The widgets and their helpers (`ImageWidget.qml` shows a picture of your choice). |
@@ -165,7 +166,7 @@ and more files...
 | Lock / Sleep / Restart / Shut Down | `loginctl`, `systemctl` (UWSM sessions are stopped via `uwsm`) |
 | Trash watching / emptying | `inotify-tools` (`inotifywait`), `ktrash6`/`ktrash5`, or a file manager (`dolphin`, `nautilus`, `thunar`, `nemo`, `pcmanfm-qt`) |
 | Folder pickers in Settings, picking a picture for an Image widget | `zenity`, `kdialog` or `yad` |
-| "About This Linux" | `fastfetch` or `neofetch` |
+| "About This Linux" | `lscpu`, `lspci` (pciutils), `free` and `findmnt` (util-linux) |
 | Do Not Disturb (Focus) | `dunstctl`, `makoctl` or `swaync-client` (only if you keep one of those) |
 | Emoji search keywords | `emoji-test.txt` from the `unicode-emoji` package (otherwise `EmojiData.js` is used) |
 | Setting the wallpaper | `awww` (recommended; its daemon is started for you). Fallbacks: `swww`, Noctalia, `hyprpaper`, `swaybg` — or set a command yourself (see [Wallpaper](#wallpaper)) |
@@ -359,6 +360,7 @@ Also make sure **blur is enabled** in your Hyprland `decoration` settings, or th
 | `wallpapers` | `toggle`, `open`, `close` |
 | `switcher` | `next`, `prev`, `commit`, `cancel` |
 | `settings` | `open` (works even if both the bar and the Dock are disabled) |
+| `about` | `open` (the Settings window → About pane, with the "About This Linux" card) |
 | `widgets` | `refresh` (re-fetch the weather), `edit true\|false` (move / remove desktop widgets) |
 | `glass` | `captures true\|false` (window previews on/off, same as Settings → Dock Behavior → *Live window capture*) |
 

@@ -275,7 +275,7 @@ OPTIONAL=(
     "ffmpeg:ffmpeg:video wallpaper thumbnails and previews"
     "zenity:zenity:file pickers (image widgets, Settings folders)"
     "magick:imagemagick:profile picture conversion"
-    "fastfetch:fastfetch:About This Linux"
+    "lspci:pciutils:About This Linux (GPU detection)"
     "rsync:rsync:faster, safer file sync in the installer"
     "kitty:kitty:the default terminal"
     "hypridle:hypridle:lock on idle (optional)"

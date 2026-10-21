@@ -290,6 +290,11 @@ ShellRoot {
         function stop(): void { clockApp.stopRing(); }
         function snooze(): void { clockApp.snooze(); }
     }
+    // qs -c MacShell ipc call about open   (the Settings window -> About pane)
+    IpcHandler {
+        target: "about"
+        function open(): void { macDock.openPrefs("about"); }
+    }
     IpcHandler {
         target: "notifications"
         function open(): void { macBar.notifPopRequest(true); }

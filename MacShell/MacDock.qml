@@ -3648,6 +3648,24 @@ Scope {
                 property bool armed: false
                 Timer { id: disarm; interval: 3000; onTriggered: aboutCol.armed = false }
 
+                // ── About This Linux ──
+                // the system information card: CPU, GPU, RAM, startup disk, distribution, kernel
+                // and the kind of machine, with a picture that follows the hardware.
+                Item {
+                    width: parent.width
+                    height: aboutCard.implicitHeight
+
+                    AboutThisLinux {
+                        id: aboutCard
+
+                        anchors.horizontalCenter: parent.horizontalCenter
+
+                        width: Math.min(430, parent.width)
+
+                        height: implicitHeight
+                    }
+                }
+
                 SCard {
                     t: pal
                     Item {

@@ -2866,7 +2866,7 @@ Scope {
     function menuModelFor(name) {
         var m = [], i;
         if (name === "apple") {
-            m.push(mi("About This Linux", "", function () { sh(terminal + " -e sh -c 'fastfetch || neofetch; echo; read -p \"Press Enter\" _'"); }));
+            m.push(mi("About This Linux", "", function () { root.openSettings("about"); }));
             m.push(msep());
             m.push(mi("System Settings\u2026", "", function () { root.openSettings(); }));
             m.push(msep());

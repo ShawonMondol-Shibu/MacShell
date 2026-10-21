@@ -646,5 +646,24 @@ var strings = {
     "Recording": "Запись",
     "Restore": "Восстановить",
     "Sound effects": "Звуковые эффекты",
-    "Enter your password to unlock": "Введите пароль для разблокировки"
+    "Enter your password to unlock": "Введите пароль для разблокировки",
+
+    // About This Linux card
+    "Processor": "Процессор",
+    "Graphics": "Графика",
+    "Memory": "Память",
+    "Startup Disk": "Загрузочный диск",
+    "More Info…": "Подробнее…",
+    "Hide Details": "Скрыть подробности",
+    "Kernel: ": "Ядро: ",
+    "Device: ": "Устройство: ",
+    "Model: ": "Модель: ",
+    "Cores: ": "Ядра: ",
+    "Unknown": "Неизвестно",
+    " logical cores": " логических ядер",
+    "laptop": "ноутбук",
+    "desktop": "компьютер",
+    "Linux Desktop": "Компьютер на Linux",
+    "Linux Laptop": "Ноутбук на Linux",
+    "Linux on Hyprland with Quickshell": "Linux на Hyprland с Quickshell"
 };
